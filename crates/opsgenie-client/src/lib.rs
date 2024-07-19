@@ -1,7 +1,4 @@
-use response::{
-    schedule::{OnCallRecipients, Schedule},
-    ApiResponse,
-};
+use response::ApiResponse;
 use serde::{de::DeserializeOwned, Serialize};
 use url::Url;
 
@@ -40,6 +37,10 @@ impl OpsgenieClient {
 
     pub fn alert(&self) -> apis::AlertApi<'_> {
         apis::AlertApi(self)
+    }
+
+    pub fn team(&self) -> apis::TeamApi<'_> {
+        apis::TeamApi(self)
     }
 
     pub(crate) async fn post_json<T: Serialize, R: DeserializeOwned>(

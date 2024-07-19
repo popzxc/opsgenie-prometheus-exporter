@@ -1,9 +1,13 @@
+use metrics::{OnCallStatus, METRICS};
 use opsgenie_client::{
     query_builder::{Query, ToFilter as _},
     OpsgenieClient,
 };
 use serde::Deserialize;
-use std::{collections::HashMap, time::Duration};
+use std::{
+    collections::{HashMap, HashSet},
+    time::Duration,
+};
 use tracing_subscriber::{layer::SubscriberExt as _, util::SubscriberInitExt as _, EnvFilter};
 use url::Url;
 use vise_exporter::MetricsExporter;
@@ -71,32 +75,78 @@ impl OpsgenieUpdater {
     }
 
     async fn step(&self) -> anyhow::Result<()> {
+        // Get all teams
+        let team_descriptors = self.client.team().list_teams().await?;
+        let mut team_members = HashMap::new();
+        for team_desc in team_descriptors.data {
+            let team = self.client.team().get(team_desc.id).await?;
+            team_members.insert(team_desc.name.clone(), HashSet::new());
+
+            let Some(members) = team.data.members else {
+                tracing::warn!("Team {} has no members", team_desc.name);
+                continue;
+            };
+            for member in members {
+                let Some(username) = member.user.username else {
+                    tracing::warn!("Member has no username: {:?}", member);
+                    continue;
+                };
+
+                team_members
+                    .get_mut(&team_desc.name)
+                    .unwrap()
+                    .insert(username);
+            }
+        }
+
+        for (team, members) in team_members.clone() {
+            tracing::info!("Team: {}", team);
+            for member in members {
+                tracing::info!("  - {}", member);
+            }
+        }
+
         // Get all schedules
-        let schedules = self.client.schedule().schedules().await?;
+        let schedules = self.client.schedule().list_schedules().await?;
 
         // Sort them by team.
         let mut team_schedules = HashMap::new();
+        // Also store all team members for each schedule to report who is on call.
+        let mut not_on_call = HashMap::new();
         for schedule in schedules.data {
             let team = schedule.owner_team.name.clone();
             team_schedules
-                .entry(team)
+                .entry(team.clone())
                 .or_insert_with(Vec::new)
-                .push(schedule);
+                .push(schedule.clone());
+            tracing::info!(
+                "Adding members for schedule {}; team {}",
+                schedule.name,
+                team
+            );
+            not_on_call.insert(schedule.name, team_members[&team].clone());
         }
 
-        for (team, schedules) in team_schedules {
+        for (team, schedules) in team_schedules.clone() {
             tracing::info!("Team: {}", team.clone());
             for schedule in schedules {
                 let on_call = self.client.on_call().whoisoncall(&schedule.id).await?;
 
-                tracing::info!("  - Schedule {}:", schedule.name);
+                tracing::info!("  - Schedule {}:", &schedule.name);
                 for recipient in on_call.data.on_call_recipients {
                     tracing::info!("    - {}", recipient);
+                    METRICS.on_call[&(team.clone(), schedule.name.clone(), recipient.clone())]
+                        .set(OnCallStatus::OnCall as u64);
+                    not_on_call
+                        .entry(schedule.name.clone())
+                        .and_modify(|members| {
+                            members.remove(&recipient);
+                        });
                 }
-                // let mut labels = HashMap::new();
-                // labels.insert("schedule_id".to_string(), schedule.id);
-                // labels.insert("schedule_name".to_string(), schedule.name);
-                // metrics::ON_CALL.with_label_values(labels).set(on_call.on_call_recipients.len() as f64);
+                for team_member in &not_on_call[&schedule.name] {
+                    METRICS.on_call[&(team.clone(), schedule.name.clone(), team_member.clone())]
+                        .set(OnCallStatus::NotOnCall as u64);
+                }
             }
             let open_alerts = self
                 .client
@@ -105,6 +155,7 @@ impl OpsgenieUpdater {
                 .await?;
             tracing::info!("  - Open alerts: {}", open_alerts.data.count);
         }
+
         Ok(())
     }
 }

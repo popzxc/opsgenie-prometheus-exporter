@@ -4,7 +4,7 @@ use crate::response::{schedule::Schedule, ApiResponse};
 pub struct ScheduleApi<'a>(pub(crate) &'a crate::OpsgenieClient);
 
 impl<'a> ScheduleApi<'a> {
-    pub async fn schedules(&self) -> anyhow::Result<ApiResponse<Vec<Schedule>>> {
+    pub async fn list_schedules(&self) -> anyhow::Result<ApiResponse<Vec<Schedule>>> {
         self.0.get_json("schedules", &()).await
     }
 }
