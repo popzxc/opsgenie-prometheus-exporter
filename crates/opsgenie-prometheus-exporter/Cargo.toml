@@ -1,0 +1,18 @@
+[package]
+name = "opsgenie-prometheus-exporter"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow.workspace = true
+envy.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+url.workspace = true
+vise.workspace = true
+vise-exporter.workspace = true
+
+opsgenie-client.workspace = true
