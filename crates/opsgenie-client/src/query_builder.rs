@@ -113,7 +113,12 @@ impl ToFilter for Query {
 
 impl<T: std::fmt::Debug + ToString + 'static> ToFilter for T {
     fn to_filter(&self) -> String {
-        self.to_string()
+        let str = self.to_string();
+        if str.contains(' ') {
+            format!("\"{}\"", str)
+        } else {
+            str
+        }
     }
 }
 

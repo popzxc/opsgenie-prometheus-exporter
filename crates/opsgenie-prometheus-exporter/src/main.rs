@@ -1,4 +1,7 @@
-use opsgenie_client::OpsgenieClient;
+use opsgenie_client::{
+    query_builder::{Query, ToFilter as _},
+    OpsgenieClient,
+};
 use serde::Deserialize;
 use std::{collections::HashMap, env};
 use tracing_subscriber::{layer::SubscriberExt as _, util::SubscriberInitExt as _, EnvFilter};
@@ -54,7 +57,7 @@ async fn main() -> anyhow::Result<()> {
     }
 
     for (team, schedules) in team_schedules {
-        println!("Team: {}", team);
+        println!("Team: {}", team.clone());
         for schedule in schedules {
             let on_call = client.on_call().whoisoncall(&schedule.id).await?;
 
@@ -67,6 +70,11 @@ async fn main() -> anyhow::Result<()> {
             // labels.insert("schedule_name".to_string(), schedule.name);
             // metrics::ON_CALL.with_label_values(labels).set(on_call.on_call_recipients.len() as f64);
         }
+        let open_alerts = client
+            .alert()
+            .count(Query::new("team", team).and(Query::new("status", "open")))
+            .await?;
+        println!("  - Open alerts: {}", open_alerts.data.count);
     }
 
     // metrics::OPSGENIE_REQUESTS.inc();
