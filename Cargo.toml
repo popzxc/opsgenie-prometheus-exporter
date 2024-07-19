@@ -1,6 +1,8 @@
 [workspace]
 members = [ "crates/*" ]
 
+resolver = "2"
+
 [workspace.dependencies]
 opsgenie-client = { version = "0.1.0", path = "crates/opsgenie-client" }
 anyhow = "1.0.86"
@@ -19,3 +21,4 @@ tracing-subscriber = { version =  "0.3.18", features = [
 url = { version = "2.5.2", features = ["serde"] }
 vise = "0.1.0"
 vise-exporter = "0.1.0"
+chrono = { version = "0.4", features = ["serde"] }

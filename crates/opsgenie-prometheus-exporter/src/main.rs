@@ -6,7 +6,7 @@ use opsgenie_client::{
 use serde::Deserialize;
 use std::{
     collections::{HashMap, HashSet},
-    time::Duration,
+    time::{Duration, SystemTime},
 };
 use tracing_subscriber::{layer::SubscriberExt as _, util::SubscriberInitExt as _, EnvFilter};
 use url::Url;
@@ -26,7 +26,7 @@ struct Config {
 
 impl Config {
     fn default_polling_interval_secs() -> u64 {
-        60
+        60 * 5
     }
 
     fn polling_interval(&self) -> Duration {
@@ -148,12 +148,64 @@ impl OpsgenieUpdater {
                         .set(OnCallStatus::NotOnCall as u64);
                 }
             }
-            let open_alerts = self
-                .client
-                .alert()
-                .count(Query::new("team", team).and(Query::new("status", "open")))
-                .await?;
-            tracing::info!("  - Open alerts: {}", open_alerts.data.count);
+
+            for priority in (1..=5).map(|p| format!("P{p}")) {
+                let total = self
+                    .client
+                    .alert()
+                    .count(
+                        Query::new("team", team.clone())
+                            .and(Query::new("priority", priority.clone())),
+                    )
+                    .await?;
+                METRICS.alerts[&(team.clone(), "total", priority.clone())].set(total.data.count);
+                tracing::info!(
+                    "Team {} has {} alerts with priority {}",
+                    team,
+                    total.data.count,
+                    priority
+                );
+
+                let open = self
+                    .client
+                    .alert()
+                    .count(Query::new("team", team.clone()).and(
+                        Query::new("priority", priority.clone()).and(Query::new("status", "open")),
+                    ))
+                    .await?;
+                METRICS.alerts[&(team.clone(), "total", priority.clone())].set(open.data.count);
+                tracing::info!(
+                    "Team {} has {} open alerts with priority {}",
+                    team,
+                    open.data.count,
+                    priority
+                );
+                if open.data.count > 0 {
+                    // Get at most 100 alerts; should be representative enough.
+                    const MAX_ALERTS_TO_FETCH: u32 = 100;
+                    let alerts = self
+                        .client
+                        .alert()
+                        .list(
+                            Query::new("team", team.clone())
+                                .and(Query::new("priority", priority.clone()))
+                                .and(Query::new("status", "open")),
+                            Some(MAX_ALERTS_TO_FETCH),
+                        )
+                        .await?;
+                    for alert in alerts.data {
+                        let unix_timestamp = alert.created_at.timestamp();
+                        let alert_system_time =
+                            SystemTime::UNIX_EPOCH + Duration::from_secs(unix_timestamp as u64);
+                        let now = SystemTime::now();
+
+                        if let Ok(duration) = now.duration_since(alert_system_time) {
+                            METRICS.alert_duration[&(team.clone(), priority.clone())]
+                                .observe(duration);
+                        }
+                    }
+                }
+            }
         }
 
         Ok(())

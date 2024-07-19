@@ -20,11 +20,8 @@ pub(crate) struct OpsgenieMetrics {
     #[metrics(labels = ["team", "schedule", "on_call"])]
     pub on_call: LabeledFamily<(String, String, String), Gauge<u64>, 3>,
     /// Number of alerts for each team.
-    #[metrics(labels = ["team", "priority"])]
-    pub alerts: LabeledFamily<(String, String), Gauge<u64>, 2>,
-    /// Number of escalated alerts.
-    #[metrics(labels = ["team", "priority"])]
-    pub escalated_alerts: LabeledFamily<(String, String), Gauge<u64>, 2>,
+    #[metrics(labels = ["team", "status", "priority"])]
+    pub alerts: LabeledFamily<(String, &'static str, String), Gauge<u64>, 3>,
     /// Alert live duration in seconds.
     #[metrics(buckets = Buckets::exponential(MINUTE..=WEEK, 4.0), labels = ["team", "priority"])]
     pub alert_duration: LabeledFamily<(String, String), Histogram<Duration>, 2>,

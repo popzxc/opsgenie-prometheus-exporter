@@ -88,6 +88,9 @@ impl OpsgenieClient {
         let request = request.header("Authorization", format!("GenieKey {}", self.api_key));
         let response = request.send().await?;
         // TODO: Handle rate limiting.
+        // 2024-07-19T17:23:00.029276Z ERROR opsgenie_client
+        // Failed to deserialize response Object {"message": String("You are making too many requests! To avoid errors, we recommend you limit requests."),
+        // "requestId": String("831e6aca-2dd3-475b-9acc-bd385b2f5e7a"), "took": Number(0.002)}: Error("missing field `data`", line: 0, column: 0)
         Ok(response)
     }
 }
