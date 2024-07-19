@@ -1,9 +1,13 @@
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
-use types::ApiResponse;
+use response::{
+    schedule::{OnCallRecipients, Schedule},
+    ApiResponse,
+};
+use serde::{de::DeserializeOwned, Serialize};
 use url::Url;
 
+pub mod apis;
 pub mod query_builder;
-pub mod types;
+pub mod response;
 
 /// The Opsgenie API version to use.
 const API_VERSION: &str = "v2/";
@@ -26,23 +30,19 @@ impl OpsgenieClient {
         }
     }
 
-    pub async fn schedules(&self) -> anyhow::Result<ApiResponse<Vec<types::Schedule>>> {
-        self.get_json("schedules").await
+    pub fn on_call(&self) -> apis::OnCallApi<'_> {
+        apis::OnCallApi(self)
     }
 
-    // pub async fn schedules(&self) -> anyhow::Result<ApiResponse<Vec<serde_json::Value>>> {
-    //     self.get_json("schedules").await
-    // }
-
-    pub async fn whoisoncall(
-        &self,
-        schedule_id: &str,
-    ) -> anyhow::Result<ApiResponse<types::OnCallRecipients>> {
-        self.get_json(&format!("schedules/{}/on-calls?flat=true", schedule_id))
-            .await
+    pub fn schedule(&self) -> apis::ScheduleApi<'_> {
+        apis::ScheduleApi(self)
     }
 
-    async fn post_json<T: Serialize, R: DeserializeOwned>(
+    pub fn alert(&self) -> apis::AlertApi<'_> {
+        apis::AlertApi(self)
+    }
+
+    pub(crate) async fn post_json<T: Serialize, R: DeserializeOwned>(
         &self,
         path: &str,
         body: &T,
@@ -61,9 +61,13 @@ impl OpsgenieClient {
         }
     }
 
-    async fn get_json<R: DeserializeOwned>(&self, path: &str) -> anyhow::Result<ApiResponse<R>> {
+    pub(crate) async fn get_json<T: Serialize, R: DeserializeOwned>(
+        &self,
+        path: &str,
+        query: &T,
+    ) -> anyhow::Result<ApiResponse<R>> {
         let url = self.base_url.join(path)?;
-        let request = self.client.get(url);
+        let request = self.client.get(url).query(query);
         let response = self.perform_request(request).await?;
         let response = response.json::<serde_json::Value>().await?;
 

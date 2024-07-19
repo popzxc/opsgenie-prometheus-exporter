@@ -41,19 +41,32 @@ async fn main() -> anyhow::Result<()> {
     let client = OpsgenieClient::new(config.opsgenie_base_url, config.opsgenie_api_key);
 
     // Get all schedules
-    let schedules = client.schedules().await?;
+    let schedules = client.schedule().schedules().await?;
 
+    // Sort them by team.
+    let mut team_schedules = HashMap::new();
     for schedule in schedules.data {
-        let on_call = client.whoisoncall(&schedule.id).await?;
+        let team = schedule.owner_team.name.clone();
+        team_schedules
+            .entry(team)
+            .or_insert_with(Vec::new)
+            .push(schedule);
+    }
 
-        println!("{}:", schedule.name);
-        for recipient in on_call.data.on_call_recipients {
-            println!("  - {}", recipient);
+    for (team, schedules) in team_schedules {
+        println!("Team: {}", team);
+        for schedule in schedules {
+            let on_call = client.on_call().whoisoncall(&schedule.id).await?;
+
+            println!("  - Schedule {}:", schedule.name);
+            for recipient in on_call.data.on_call_recipients {
+                println!("    - {}", recipient);
+            }
+            // let mut labels = HashMap::new();
+            // labels.insert("schedule_id".to_string(), schedule.id);
+            // labels.insert("schedule_name".to_string(), schedule.name);
+            // metrics::ON_CALL.with_label_values(labels).set(on_call.on_call_recipients.len() as f64);
         }
-        // let mut labels = HashMap::new();
-        // labels.insert("schedule_id".to_string(), schedule.id);
-        // labels.insert("schedule_name".to_string(), schedule.name);
-        // metrics::ON_CALL.with_label_values(labels).set(on_call.on_call_recipients.len() as f64);
     }
 
     // metrics::OPSGENIE_REQUESTS.inc();
