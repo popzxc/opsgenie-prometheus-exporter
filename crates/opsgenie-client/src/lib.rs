@@ -86,6 +86,7 @@ impl OpsgenieClient {
     ) -> anyhow::Result<reqwest::Response> {
         let request = request.header("Authorization", format!("GenieKey {}", self.api_key));
         let response = request.send().await?;
+        // TODO: Handle rate limiting.
         Ok(response)
     }
 }

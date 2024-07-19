@@ -5,7 +5,7 @@ pub struct Query {
     filter: Box<dyn ToFilter>,
 }
 
-pub trait ToFilter: 'static + std::fmt::Debug {
+pub trait ToFilter: 'static + std::fmt::Debug + Send + Sync {
     fn to_filter(&self) -> String;
 
     fn and<R: ToFilter>(self, other: R) -> And
@@ -111,7 +111,7 @@ impl ToFilter for Query {
     }
 }
 
-impl<T: std::fmt::Debug + ToString + 'static> ToFilter for T {
+impl<T: std::fmt::Debug + ToString + 'static + Send + Sync> ToFilter for T {
     fn to_filter(&self) -> String {
         let str = self.to_string();
         if str.contains(' ') {
