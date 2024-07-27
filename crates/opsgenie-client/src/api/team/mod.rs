@@ -8,11 +8,11 @@ pub struct TeamApi<'a>(pub(crate) &'a crate::OpsgenieClient);
 impl<'a> TeamApi<'a> {
     pub async fn list_teams(
         &self,
-    ) -> anyhow::Result<ApiResponse<Vec<self::response::TeamDescriptor>>> {
-        self.0.get_json("teams", &()).await
+    ) -> crate::Result<ApiResponse<Vec<self::response::TeamDescriptor>>> {
+        self.0.get("teams", &()).await
     }
 
-    pub async fn get(&self, team_id: String) -> anyhow::Result<ApiResponse<self::response::Team>> {
-        self.0.get_json(&format!("teams/{}", team_id), &()).await
+    pub async fn get(&self, team_id: String) -> crate::Result<ApiResponse<self::response::Team>> {
+        self.0.get(&format!("teams/{}", team_id), &()).await
     }
 }

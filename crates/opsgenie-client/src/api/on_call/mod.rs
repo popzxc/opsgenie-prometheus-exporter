@@ -9,9 +9,9 @@ impl<'a> OnCallApi<'a> {
     pub async fn whoisoncall(
         &self,
         schedule_id: &str,
-    ) -> anyhow::Result<ApiResponse<self::response::OnCallRecipients>> {
+    ) -> crate::Result<ApiResponse<self::response::OnCallRecipients>> {
         self.0
-            .get_json(
+            .get(
                 &format!("schedules/{}/on-calls", schedule_id),
                 &[("flat", true)],
             )

@@ -1,4 +1,5 @@
 use crate::api::response::ApiResponse;
+use api::response::ApiError;
 use serde::{de::DeserializeOwned, Serialize};
 use url::Url;
 
@@ -7,6 +8,16 @@ pub mod query_builder;
 
 /// The Opsgenie API version to use.
 const API_VERSION: &str = "v2/";
+
+#[derive(Debug, thiserror::Error)]
+pub enum ClientError {
+    #[error("Client error occurred: {0}")]
+    Client(#[from] reqwest::Error),
+    #[error("Request failed: {0}")]
+    Request(#[from] crate::api::response::ApiError),
+}
+
+pub type Result<T> = ::core::result::Result<T, ClientError>;
 
 #[derive(Debug)]
 pub struct OpsgenieClient {
@@ -42,54 +53,50 @@ impl OpsgenieClient {
         api::TeamApi(self)
     }
 
-    pub(crate) async fn post_json<T: Serialize, R: DeserializeOwned>(
+    pub(crate) async fn post<T: Serialize, R: DeserializeOwned>(
         &self,
         path: &str,
         body: &T,
-    ) -> anyhow::Result<ApiResponse<R>> {
-        let url = self.base_url.join(path)?;
+    ) -> Result<ApiResponse<R>> {
+        let url = self.url(path);
         let request = self.client.post(url).json(body);
-        let response = self.perform_request(request).await?;
-        let response = response.json::<serde_json::Value>().await?;
-
-        match serde_json::from_value(response.clone()) {
-            Ok(response) => Ok(response),
-            Err(e) => {
-                tracing::error!("Failed to deserialize response {:?}: {:?}", response, e);
-                Err(anyhow::anyhow!(e))
-            }
-        }
+        self.perform_request(request).await
     }
 
-    pub(crate) async fn get_json<T: Serialize, R: DeserializeOwned>(
+    pub(crate) async fn get<T: Serialize, R: DeserializeOwned>(
         &self,
         path: &str,
         query: &T,
-    ) -> anyhow::Result<ApiResponse<R>> {
-        let url = self.base_url.join(path)?;
+    ) -> Result<ApiResponse<R>> {
+        let url = self.url(path);
         let request = self.client.get(url).query(query);
-        let response = self.perform_request(request).await?;
-        let response = response.json::<serde_json::Value>().await?;
-
-        match serde_json::from_value(response.clone()) {
-            Ok(response) => Ok(response),
-            Err(e) => {
-                tracing::error!("Failed to deserialize response {:?}: {:?}", response, e);
-                Err(anyhow::anyhow!(e))
-            }
-        }
+        self.perform_request(request).await
     }
 
-    async fn perform_request(
+    fn url(&self, path: &str) -> url::Url {
+        self.base_url
+            .join(path)
+            .unwrap_or_else(|err| panic!("Invalid path provided: {path}: {err}"))
+    }
+
+    async fn perform_request<R: DeserializeOwned>(
         &self,
         request: reqwest::RequestBuilder,
-    ) -> anyhow::Result<reqwest::Response> {
+    ) -> Result<ApiResponse<R>> {
         let request = request.header("Authorization", format!("GenieKey {}", self.api_key));
         let response = request.send().await?;
-        // TODO: Handle rate limiting.
-        // 2024-07-19T17:23:00.029276Z ERROR opsgenie_client
-        // Failed to deserialize response Object {"message": String("You are making too many requests! To avoid errors, we recommend you limit requests."),
-        // "requestId": String("831e6aca-2dd3-475b-9acc-bd385b2f5e7a"), "took": Number(0.002)}: Error("missing field `data`", line: 0, column: 0)
-        Ok(response)
+        // TODO: If you get 503, you should retry the request, but if 429 you should wait a bit then retry the request *
+        if response.status().is_success() {
+            let response: ApiResponse<R> = response.json().await?;
+            Ok(response)
+        } else {
+            // TODO: Handle rate limiting.
+            // 2024-07-19T17:23:00.029276Z ERROR opsgenie_client
+            // Failed to deserialize response Object {"message": String("You are making too many requests! To avoid errors, we recommend you limit requests."),
+            // "requestId": String("831e6aca-2dd3-475b-9acc-bd385b2f5e7a"), "took": Number(0.002)}: Error("missing field `data`", line: 0, column: 0)
+
+            let error: ApiError = response.json().await?;
+            Err(ClientError::Request(error))
+        }
     }
 }
