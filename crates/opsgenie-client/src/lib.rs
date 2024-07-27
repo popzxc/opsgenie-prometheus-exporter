@@ -4,6 +4,8 @@ use serde::{de::DeserializeOwned, Serialize};
 use url::Url;
 
 pub mod api;
+pub mod limits;
+pub mod pagination;
 pub mod query_builder;
 
 /// The Opsgenie API version to use.
