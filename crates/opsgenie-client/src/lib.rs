@@ -1,10 +1,9 @@
-use response::ApiResponse;
+use crate::api::response::ApiResponse;
 use serde::{de::DeserializeOwned, Serialize};
 use url::Url;
 
-pub mod apis;
+pub mod api;
 pub mod query_builder;
-pub mod response;
 
 /// The Opsgenie API version to use.
 const API_VERSION: &str = "v2/";
@@ -27,20 +26,20 @@ impl OpsgenieClient {
         }
     }
 
-    pub fn on_call(&self) -> apis::OnCallApi<'_> {
-        apis::OnCallApi(self)
+    pub fn on_call(&self) -> api::OnCallApi<'_> {
+        api::OnCallApi(self)
     }
 
-    pub fn schedule(&self) -> apis::ScheduleApi<'_> {
-        apis::ScheduleApi(self)
+    pub fn schedule(&self) -> api::ScheduleApi<'_> {
+        api::ScheduleApi(self)
     }
 
-    pub fn alert(&self) -> apis::AlertApi<'_> {
-        apis::AlertApi(self)
+    pub fn alert(&self) -> api::AlertApi<'_> {
+        api::AlertApi(self)
     }
 
-    pub fn team(&self) -> apis::TeamApi<'_> {
-        apis::TeamApi(self)
+    pub fn team(&self) -> api::TeamApi<'_> {
+        api::TeamApi(self)
     }
 
     pub(crate) async fn post_json<T: Serialize, R: DeserializeOwned>(

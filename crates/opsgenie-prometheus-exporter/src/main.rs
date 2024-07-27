@@ -149,6 +149,11 @@ impl OpsgenieUpdater {
                 }
             }
 
+            // TODO: Hack to avoid rate limiting.
+            tokio::time::sleep(Duration::from_secs(5)).await;
+
+            // TODO: filter out teams that had an alert in the last week.
+
             for priority in (1..=5).map(|p| format!("P{p}")) {
                 let total = self
                     .client
@@ -173,7 +178,7 @@ impl OpsgenieUpdater {
                         Query::new("priority", priority.clone()).and(Query::new("status", "open")),
                     ))
                     .await?;
-                METRICS.alerts[&(team.clone(), "total", priority.clone())].set(open.data.count);
+                METRICS.alerts[&(team.clone(), "open", priority.clone())].set(open.data.count);
                 tracing::info!(
                     "Team {} has {} open alerts with priority {}",
                     team,
