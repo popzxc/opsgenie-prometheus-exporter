@@ -7,6 +7,8 @@ pub mod api;
 pub mod limits;
 pub mod pagination;
 pub mod query_builder;
+#[cfg(test)]
+pub(crate) mod test_utils;
 
 /// The Opsgenie API version to use.
 const API_VERSION: &str = "v2/";
