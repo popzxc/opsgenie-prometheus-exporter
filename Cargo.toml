@@ -5,6 +5,7 @@ resolver = "2"
 
 [workspace.dependencies]
 opsgenie-client = { version = "0.1.0", path = "crates/opsgenie-client" }
+clap = "4"
 anyhow = "1.0.86"
 envy = "0.4.2"
 reqwest = { version = "0.12.5", features = ["json"] }
