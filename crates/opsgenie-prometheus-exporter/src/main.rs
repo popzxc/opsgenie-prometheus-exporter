@@ -1,3 +1,4 @@
+use clap::Parser;
 use config::Config;
 use tracing_subscriber::{layer::SubscriberExt as _, util::SubscriberInitExt as _, EnvFilter};
 use updater::OpsgenieUpdater;
@@ -26,11 +27,22 @@ fn init_tracing(json: bool) {
     }
 }
 
-// #
+/// Exporter for Opsgenie data to Prometheus
+#[derive(Debug, Parser)]
+#[command(version, about)]
+struct Cli {
+    /// Path to the `.env` file.
+    /// If not provided, `.env` file will be attempted, and if it doesn't exist,
+    /// environment variables will be used.
+    #[arg(short, long)]
+    env_file: Option<String>,
+}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let config: Config = envy::from_env()?;
+    let cli = Cli::parse();
+
+    let config = Config::load(cli.env_file.as_deref().unwrap_or(".env"))?;
     init_tracing(config.log_format.to_ascii_lowercase() == "json");
 
     tracing::info!("Starting up");

@@ -1,5 +1,6 @@
-use std::time::Duration;
+use std::{io::BufRead as _, time::Duration};
 
+use anyhow::Context as _;
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
@@ -15,6 +16,31 @@ pub(crate) struct Config {
 }
 
 impl Config {
+    pub fn load(dotenv_path: &str) -> anyhow::Result<Self> {
+        // Check if file exists. If not, load values from env.
+        let config = if std::path::Path::new(dotenv_path).exists() {
+            let file = std::fs::File::open(dotenv_path).context("Can't open config file")?;
+            // Create iterator over `KEY=VAL` pairs.
+            // Somewhat ugly but whatever.
+            let kv: Vec<_> = std::io::BufReader::new(file)
+                .lines()
+                .map(|line| {
+                    line.context("Can't read line").and_then(|line| {
+                        let mut parts = line.splitn(2, '=');
+                        let key = parts.next().context("No key")?.to_string();
+                        let value = parts.next().context("No value")?.to_string();
+                        Ok((key, value))
+                    })
+                })
+                .collect::<anyhow::Result<Vec<_>>>()?;
+
+            envy::from_iter(kv).context("Malformed .env file")?
+        } else {
+            envy::from_env().context("Failed to load values from env")?
+        };
+        Ok(config)
+    }
+
     fn default_log_format() -> String {
         "plain".into()
     }
