@@ -10,9 +10,13 @@ The project is WIP.
 Export information about alerts to Opsgenie to easily see information about on-call schedules and alert
 statistics.
 
+See [README.md](./crates/opsgenie-prometheus-exporter/README.md)
+
 ## Opsgenie Rust client library
 
 A hand-written library providing access to Opsgenie SDK.
+
+See [README.md](./crates/opsgenie-client/README.md)
 
 ## License
 
