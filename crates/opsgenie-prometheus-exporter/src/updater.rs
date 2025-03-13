@@ -153,6 +153,7 @@ impl OpsgenieUpdater {
                                 .and(Query::new("priority", priority.clone()))
                                 .and(Query::new("status", "open")),
                             Some(MAX_ALERTS_TO_FETCH),
+                            None,
                         )
                         .await?;
                     for alert in alerts.data {
