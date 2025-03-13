@@ -19,12 +19,14 @@ impl<'a> AlertApi<'a> {
         &self,
         query: impl ToFilter,
         limit: Option<u32>,
+        offset: Option<u32>,
     ) -> crate::Result<ApiResponse<Vec<self::response::Alert>>> {
         let limit = limit.unwrap_or(100);
+        let offset = offset.unwrap_or(0);
         let query = query.to_filter();
         tracing::debug!(query=%query, "Sending query");
         self.0
-            .get("alerts", &[("query", query), ("limit", limit.to_string())])
+            .get("alerts", &[("query", query), ("limit", limit.to_string()), ("offset", offset.to_string())])
             .await
     }
 }
