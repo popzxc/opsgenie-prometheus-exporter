@@ -201,15 +201,15 @@ mod tests {
     #[test]
     fn basic_query() {
         let query = Query::new("field", "value");
-        assert_eq!(query.to_filter(), "(field:value)");
+        assert_eq!(query.to_filter(), "field:value");
         let query = Query::less("field", 42);
-        assert_eq!(query.to_filter(), "(field<42)");
+        assert_eq!(query.to_filter(), "field<42");
         let query = Query::greater("field", 42);
-        assert_eq!(query.to_filter(), "(field>42)");
+        assert_eq!(query.to_filter(), "field>42");
         let query = Query::greater_or_equal("field", 42);
-        assert_eq!(query.to_filter(), "(field>=42)");
+        assert_eq!(query.to_filter(), "field>=42");
         let query = Query::less_or_equal("field", 42);
-        assert_eq!(query.to_filter(), "(field<=42)");
+        assert_eq!(query.to_filter(), "field<=42");
     }
 
     #[test]
